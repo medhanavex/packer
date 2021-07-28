@@ -1,0 +1,45 @@
+pipeline {
+    agent any
+    stages {
+        stage('Intializing the project') {
+            steps {
+                echo 'Welcome to Opstree Labs' 
+            }
+        }
+        stage('Cloning code') {
+            steps {
+                git branch: 'main' , url: 'https://gitlab.com/ot-external-training/globallogic/trainers/packer.git', credentialsId: 'globallogicv5'
+            }
+        }
+        stage('Validating Packer Code') {
+            steps {
+                sh '''
+                cd v1_packer
+                /usr/local/bin/packer validate --var-file=variables.json main.json
+                '''
+            }
+        }
+        stage('Buidling Packer AMI for V1') {
+            steps {
+                sh '''
+                cd v1_packer
+                /usr/local/bin/packer build --var-file=variables.json main.json
+                '''
+            }
+        }
+        stage('Printing AMI ID') {
+            steps {
+                sh '''
+                cd v1_packer
+                AMI_ID=$(jq -r '.builds[-1].artifact_id' output.json | cut -d ":" -f2)
+                echo $AMI_ID
+                '''
+            }
+        }
+    }
+    post {
+        success {
+            archiveArtifacts artifacts: 'v1_packer/output.json', followSymlinks: false
+        }
+    }
+}
